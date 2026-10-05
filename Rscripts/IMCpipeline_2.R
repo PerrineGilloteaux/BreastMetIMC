@@ -46,8 +46,8 @@ library(akima)
 library(basetheme)
 
 ####LOAD CLUSTERED DATA####
-output<-readRDS('./backup_output.rds')
-clusterMergeFile = "./Config/merge.xlsx" #create dummy merger numbers prior to annotation
+output<-readRDS('..\\Input_Files\\backup_output.rds')
+clusterMergeFile = "..\\Input_Files\\merge.xlsx" #create dummy merger numbers prior to annotation
 cluster_merging <- read_excel(clusterMergeFile)
 
 ##Levels

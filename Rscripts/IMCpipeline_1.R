@@ -544,22 +544,16 @@ work<-getwd()
 
 ## If loading from prior run
 
-#to download external output files into dropbox
 
-url <- "https://drive.google.com/uc?export=download&confirm=9iBg&id=1bplnOKUtSmrEtQCM-5srVCfTuC9WrTIQ"
-destfile <- paste0(work,"/backup_output.rds")
 
-download.file(url, destfile)
 
-#from shared dropbox folder
-
-output<-readRDS('backup_output.rds')
+output<-readRDS('..\\Input_Files\\backup_output.rds')
 
 
 ## Read (skip if previously ran)
 
-output <- returnfcs(metaDataFile = paste0(work,"/Config/metadata.xlsx"),
-                    panelDataFile = paste0(work,"/Config/panel.xlsx"),
+output <- returnfcs(metaDataFile = paste0(work,"..\\Input_Files\\metadata.xlsx"),
+                    panelDataFile = paste0(work,"..\\Input_Files\\panel.xlsx"),
                     dataDirectory = paste0(work,"/Data"))
 
 
