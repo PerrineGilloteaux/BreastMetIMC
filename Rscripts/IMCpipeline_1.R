@@ -40,7 +40,7 @@ returnfcs <- function(FDR_cutoff=.05,
  
   ## Read fcs into fcs_raw
   fcs_raw <- read.flowSet(paste0(dataDirectory,"/",md$file_name), transformation = FALSE, truncate_max_range = FALSE)
-  panel <- read_excel(paste0(work,'/Config/panel.xlsx'))
+  panel <- read_excel(panelDataFile)
   head(data.frame(panel))
   panel$Parameter <- gsub('-', '_', panel$Parameter)
   
@@ -534,7 +534,7 @@ library(basetheme)
 
 ####DATA LOADING####
 
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+setwd("D:\\GIT\\BreastMetIMC\\Input_files")
 
 work<-getwd()
 
@@ -547,14 +547,14 @@ work<-getwd()
 
 
 
-output<-readRDS('..\\Input_Files\\backup_output.rds')
+#output<-readRDS('..\\Input_Files\\backup_output.rds')
 
 
 ## Read (skip if previously ran)
 
-output <- returnfcs(metaDataFile = paste0(work,"..\\Input_Files\\metadata.xlsx"),
-                    panelDataFile = paste0(work,"..\\Input_Files\\panel.xlsx"),
-                    dataDirectory = paste0(work,"/Data"))
+output <- returnfcs(metaDataFile = ("metadata.xlsx"),
+                    panelDataFile = ("panel.xlsx"),
+                    dataDirectory = ("Data"))
 
 
 ## Set up levels
@@ -677,9 +677,9 @@ dev.off()
 
 ##Revised loading depending on the diagnostics if needed
 
-output <- returnfcs(metaDataFile = paste0(work,"/Config/metadata.xlsx"),
-                    panelDataFile = paste0(work,"/Config/panel.xlsx"),
-                    dataDirectory = paste0(work,"/Data"))
+output <- returnfcs(metaDataFile = paste0(work,"metadata.xlsx"),
+                    panelDataFile = paste0(work,"panel.xlsx"),
+                    dataDirectory = paste0(work,"Data"))
 
 ##Clustering
 
@@ -814,6 +814,6 @@ dev.off()
 
 
 ## Save output list
-saveRDS(output, file="backup_output.rds")
-saveRDS(umapRes, file="backup_umap.rds")
+saveRDS(output, file="backup_output_test.rds")
+saveRDS(umapRes, file="backup_umap_test.rds")
 umapRes<-readRDS('backup_umap.rds')
