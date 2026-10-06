@@ -4,7 +4,7 @@ if (!requireNamespace("digest", quietly = TRUE)) {
 }
 
 library(digest)
-
+setwd("D:\\GIT\\BreastMetIMC\\Input_files")
 # --- Fonction pour calculer le MD5 d'une chaîne ---
 md5_string <- function(text) {
   if (!is.character(text) || length(text) != 1) {
@@ -21,7 +21,7 @@ md5_file <- function(filepath) {
   digest(file = filepath, algo = "md5")
 }
 
-tmp_file <- "..\\Input_Files\\backup_output.rds"
+tmp_file <- "backup_output.rds"
 
 hash_fichier <- md5_file(tmp_file)
 cat("MD5 du fichier :", hash_fichier, "\n")
