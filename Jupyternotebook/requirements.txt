@@ -1,0 +1,15 @@
+spatialdata
+spatialdata-plot
+scanpy
+flowsom
+flowio
+tifffile
+scikit-image
+colorcet
+seaborn
+networkx
+plotly
+openpyxl
+statsmodels
+ipywidgets
+jupyterlab
