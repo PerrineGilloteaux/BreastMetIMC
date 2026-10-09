@@ -37,11 +37,9 @@ Aucune connaissance en programmation n'est nécessaire pour l'utiliser, mais il 
 - `PhenoCycler_SpatialData_pipeline_local.ipynb` : le notebook.
 - `requirements.txt` : la liste des logiciels à installer.
 
-**Vos données PhenoCycler** (détaillées en section 3)
-- Les images TIF, **une par canal**, telles que sorties par le processeur.
-- Une carte de segmentation par région (fichier TIF).
-- Un fichier FCS par région (intensités moyennes par cellule).
-- Le fichier `channelNames.txt`.
+**Vos données PhenoCycler**, dans l'organisation standard du PhenoCycler (détaillée en section 3)
+- Pour chaque ROI : les images TIF (une par canal), le FCS compensé, la carte de segmentation et `channelNames.txt`.
+- Pour analyser plusieurs ROI : un tableau Excel qui les liste (section 3.3).
 
 ---
 
@@ -85,67 +83,80 @@ L'installation prend 5 à 15 minutes. Elle n'est à faire **qu'une fois**.
 
 ## 3. Préparer vos données
 
-### 3.1 Organisation du dossier
+### 3.1 Organisation des dossiers
 
-Créez un dossier de travail (par exemple `D:/PhenoCycler/EXP100`) organisé **exactement** ainsi :
+Le notebook lit les dossiers **tels que les produit le PhenoCycler**. Une acquisition (ROI) = un dossier. Plusieurs expériences peuvent être analysées ensemble :
 
 ```
-EXP100/
-├── images/
-│   ├── reg001_cyc001_ch001_DAPI.tif
-│   ├── reg001_cyc001_ch002_Blank.tif
-│   ├── reg001_cyc005_ch002_Vimentin.tif
-│   └── …                           (un TIF par canal et par région)
-├── labels/
-│   ├── reg001_labels.tif           (une carte de segmentation par région)
-│   └── reg002_labels.tif
-├── fcs/
-│   ├── EXP100-…_reg001_compensated.fcs
-│   └── EXP100-…_reg002_compensated.fcs
-├── channelNames.txt
-└── regions_metadata.xlsx           (facultatif, mais nécessaire pour comparer des groupes)
+D:/ELOISE/
+├── regions_metadata.xlsx                    ← liste des ROI à traiter + description (voir 3.3)
+├── EXP100/
+│   ├── channelNames.txt                     (ici, ou dans chaque dossier ROI)
+│   └── ROI_xxx/
+└── EXP112/
+    └── ROI_9x7/                             ← un dossier ROI
+        ├── channelNames.txt                 (facultatif si présent dans EXP112/)
+        ├── processed/
+        │   ├── stitched/reg001/             reg001_cyc001_ch001_DAPI.tif, … (un TIF par canal)
+        │   └── segm/segm-1/fcs/compensated/ …_reg001_compensated.fcs
+        └── out/
+            └── labels_cy002_ch1.tif         (carte de segmentation)
 ```
 
-### 3.2 Règles de nommage importantes
+Ces emplacements à l'intérieur d'une ROI sont réglés une fois pour toutes dans la cellule 0.2 :
 
-| Fichier | Règle |
+| Paramètre | Valeur par défaut |
 |---|---|
-| Images | Le nom doit contenir `regXXX_cycYYY_chZZZ` (c'est le format de sortie du processeur PhenoCycler). La fin du nom (`_DAPI`, `_Vimentin`…) n'est pas utilisée : le marqueur est lu dans `channelNames.txt`. |
-| FCS | Le nom doit contenir `regXXX`. **Une région = un FCS.** C'est la liste des FCS qui définit les régions analysées. |
-| Labels | Le nom doit contenir `regXXX` pour être associé à la bonne région (par ex. renommez `labels_cy002_ch1.tif` en `reg001_labels_cy002_ch1.tif`). **Exception :** s'il n'y a qu'une seule région et un seul fichier de labels, l'association est automatique. |
-| `channelNames.txt` | Un marqueur par ligne, dans l'ordre cycle 1 canal 1, cycle 1 canal 2, … (4 canaux par cycle par défaut). C'est le fichier produit par le PhenoCycler. |
+| `IMAGES_SUBDIR` | `processed/stitched/reg001` |
+| `FCS_SUBDIR` | `processed/segm/segm-1/fcs/compensated` |
+| `LABELS_FILE_REL` | `out/labels_cy002_ch1.tif` |
+| `CHANNELS_FILE_REL` | `channelNames.txt`, cherché dans la ROI puis dans les dossiers parents (EXP…) |
 
-**Il n'est pas obligatoire d'avoir tous les canaux en images** (sauf pour la correction du débordement de l'étape 0.7, qui ne s'applique qu'aux canaux dont l'image est présente). Les analyses utilisent les intensités du FCS ; les images servent à la visualisation. Vous pouvez donc ne mettre que DAPI et quelques marqueurs d'intérêt pour gagner de la place.
+Si votre organisation est différente, modifiez ces quatre valeurs. Pour une ROI isolée qui ne suit pas l'organisation commune, utilisez plutôt les colonnes d'exception du tableau Excel (section 3.3).
 
-**Les labels sont facultatifs.** Sans carte de segmentation, chaque cellule est représentée par un cercle centré sur sa position, et les mesures de forme (aire, grand axe) sont approximées.
+**Ce qui est obligatoire pour chaque ROI :** le FCS et `channelNames.txt`. Une ROI sans l'un des deux est exclue (signalé à l'étape 0.3).
 
-### 3.3 La carte de segmentation (labels)
+**Ce qui est facultatif :**
+- **Les images :** les analyses utilisent les intensités du FCS ; les images servent à la visualisation et à la mesure sur masque (étape 0.7). Il n'est pas nécessaire d'avoir tous les canaux, sauf pour corriger le débordement d'un marqueur, qui demande son image.
+- **La carte de labels :** sans elle, chaque cellule est représentée par un cercle et les mesures de forme sont approximées.
+
+**Un point important :** toutes les acquisitions PhenoCycler portent le même nom interne (`reg001`). Le notebook nomme donc chaque ROI d'après son dossier : `<expérience>_<ROI>`, par exemple `EXP112_ROI_9x7`. C'est cet identifiant qui apparaît dans les graphiques et les fichiers.
+
+### 3.2 La carte de segmentation (labels)
 
 Deux types de fichiers sont acceptés et reconnus automatiquement :
 
 - **Carte d'instances** (recommandé) : image 16 ou 32 bits où chaque cellule a son propre numéro.
-- **Carte de contours colorés** : image 8 bits où les contours des cellules sont tracés avec quelques couleurs. C'est le cas du fichier `labels_cy002_ch1.tif` (11 couleurs pour 26 666 cellules). Le notebook **reconstruit** alors les cellules : chaque zone fermée par un contour devient une cellule. Il associe ensuite chaque zone à la cellule du FCS dont le centre tombe dedans. Sur les données de test, 26 662 cellules sur 26 666 ont été retrouvées.
+- **Carte de contours colorés** : image 8 bits où les contours des cellules sont tracés avec quelques couleurs. C'est le cas de `labels_cy002_ch1.tif` (11 couleurs pour 26 666 cellules). Le notebook **reconstruit** alors les cellules : chaque zone fermée par un contour devient une cellule, puis est associée à la cellule du FCS dont le centre tombe dedans. Sur les données de test, 26 662 cellules sur 26 666 ont été retrouvées.
 
 Si votre logiciel de segmentation peut exporter une vraie carte d'instances, préférez-la : c'est plus fiable.
 
-### 3.4 Le fichier `regions_metadata.xlsx` (description des échantillons)
+### 3.3 Le tableau `regions_metadata.xlsx` (liste et description des ROI)
 
-Ce tableau Excel décrit chaque région. Il est **nécessaire pour les comparaisons** (LUM vs TNC, primaire vs métastase, organes, patients appariés). Sans lui, toutes les analyses tournent, mais sans comparaison entre groupes.
+Ce tableau Excel a deux rôles : il dit **quelles ROI traiter**, et il **décrit chaque échantillon** pour les comparaisons (LUM vs TNC, primaire vs métastase, organes, patients appariés). Une ligne par ROI.
 
-Une ligne par région, avec ces colonnes :
+| Colonne | Obligatoire | Contenu | Exemple |
+|---|---|---|---|
+| `roi_path` | **oui** | dossier de la ROI | `D:\ELOISE\EXP112\ROI_9x7` |
+| `region` | non | identifiant court (par défaut `<expérience>_<ROI>`) | `EXP112_ROI_9x7` |
+| `include` | non | 1 = traiter, 0 = ignorer cette ligne | `1` |
+| `sample_id` | non | nom de l'échantillon | `P_12` |
+| `Case` | non | identifiant du patient | `SPC04` |
+| `Anno` | non | site du prélèvement | `PBC`, `LUNG`, `BRAIN`, `LIVER`, `LN`… |
+| `Tumor` | non | type histologique | `IDC`, `ILC` |
+| `Phenotype` | non | sous-type tumoral | `LUM`, `TNC`, `HER2`, `CTRL` |
+| `Met` | non | 0 = primaire, 1 = métastase | `0` |
+| `Paired` | non | 1 si le patient a des prélèvements appariés | `1` |
+| `pixel_size_um` | non | taille de pixel propre à cette ROI | `0.325` |
+| `images_dir`, `fcs_file`, `labels_file`, `channels_file` | non | chemins d'exception pour une ROI qui ne suit pas l'organisation commune (chemin complet, ou relatif au dossier de la ROI) | `out/autre_labels.tif` |
 
-| Colonne | Contenu | Exemple |
-|---|---|---|
-| `region` | identifiant de la région (comme dans les noms de fichiers) | `reg001` |
-| `sample_id` | nom de l'échantillon | `P_12` |
-| `Case` | identifiant du patient | `SPC04` |
-| `Anno` | site du prélèvement | `PBC`, `LUNG`, `BRAIN`, `LIVER`, `LN`… |
-| `Tumor` | type histologique | `IDC`, `ILC` |
-| `Phenotype` | sous-type tumoral | `LUM`, `TNC`, `HER2`, `CTRL` |
-| `Met` | 0 = primaire, 1 = métastase | `0` |
-| `Paired` | 1 si le patient a des prélèvements appariés | `1` |
+**Les deux modes de la cellule 0.2 :**
+- **Plusieurs ROI** : `REGIONS_METADATA` donne le chemin de ce tableau (par ex. `D:/ELOISE/regions_metadata.xlsx`). Toutes les lignes avec `include = 1` sont traitées.
+- **Une seule ROI** : si ce fichier n'existe pas, seul le dossier `RAW_DIR` est traité, sans comparaison de groupes.
 
-> **Astuce :** lancez une première fois le notebook sans ce fichier. Il crée un modèle pré-rempli `regions_metadata_template.xlsx` dans le dossier de résultats. Complétez-le dans Excel, enregistrez-le sous le nom `regions_metadata.xlsx` dans votre dossier de données, puis relancez à partir de la partie 1.
+Sans les colonnes descriptives, toutes les analyses tournent, mais les comparaisons entre groupes sont ignorées.
+
+> **Astuce :** lancez une première fois le notebook. Il écrit un modèle pré-rempli `regions_metadata_template.xlsx` dans le dossier de résultats (colonnes `region`, `roi_path`, `include` et description). Complétez-le dans Excel, enregistrez-le sous le nom indiqué dans `REGIONS_METADATA`, puis relancez depuis la cellule 0.2.
 
 Les codes `PBC`, `PBC_tx`, `PBC_recur`… sont regroupés sous `PBC` (tumeur primaire) pour les graphiques par site, comme dans le pipeline R.
 
@@ -185,8 +196,8 @@ Pour modifier un paramètre : cliquez dans la cellule, changez la valeur après 
 | Étape | Que faire |
 |---|---|
 | **0.1 Installation** | Exécutez la cellule. Si elle installe quelque chose, redémarrez le noyau (menu **Kernel → Restart Kernel**) puis passez à la cellule suivante. |
-| **0.2 Paramètres** 🖐️ | Indiquez le chemin de votre dossier dans `RAW_DIR` (sous Windows, écrivez-le avec des `/`, par ex. `"D:/PhenoCycler/EXP100"`). Vérifiez la **taille de pixel** `PIXEL_SIZE_UM` : 0,5068 µm par défaut (PhenoCycler-Fusion, objectif 20×), à corriger selon votre acquisition. Toutes les distances en µm en dépendent. |
-| **0.3 Canaux et régions** 🔍 | Vérifiez le tableau des canaux (marqueur ↔ cycle/canal) et le tableau des régions : chaque région doit avoir son FCS, ses images et ses labels. |
+| **0.2 Paramètres** 🖐️ | Indiquez le tableau des ROI (`REGIONS_METADATA`) ou, pour une seule ROI, son dossier (`RAW_DIR`). Sous Windows, écrivez les chemins avec des `/` (`"D:/ELOISE/regions_metadata.xlsx"`). Vérifiez les sous-chemins des ROI (`IMAGES_SUBDIR`, `FCS_SUBDIR`, `LABELS_FILE_REL`) et la **taille de pixel** `PIXEL_SIZE_UM` (0,325 µm par défaut, à vérifier dans les métadonnées de votre acquisition) : toutes les distances en µm en dépendent. Les Zarr et les résultats sont écrits à côté du tableau Excel (ou dans la ROI unique), sauf si vous renseignez `PROJECT_DIR`. |
+| **0.3 Fichiers et canaux** 🔍 | Un tableau indique, pour chaque ROI, le FCS trouvé, le nombre de TIF, la présence des labels et de `channelNames.txt`, et la taille de pixel. Les ROI sans FCS ou sans `channelNames.txt` sont exclues. Si les panels diffèrent entre expériences, seuls les marqueurs communs à toutes les ROI sont analysés ensemble. Le tableau complet des chemins est enregistré dans `regions_table_resolved.xlsx`. |
 | **0.4 Conversion Zarr** | Chaque région est convertie **une seule fois** au format Zarr (dossier `spatialdata/`). Comptez quelques secondes à quelques minutes par région selon le nombre de canaux. Le tableau affiché indique le nombre de cellules retrouvées dans la carte de labels. |
 | **0.5 Contrôle des labels** 🔍 | Un zoom montre le DAPI à côté des contours des cellules reconstruites. **Vérifiez que les contours entourent bien les noyaux.** Vous pouvez déplacer la fenêtre avec `QC_X0`, `QC_Y0` et `QC_SIZE` (en pixels). |
 | **0.7 Mesures sur masque** 🖐️🔍 (facultatif) | Recalcule l'intensité moyenne de chaque cellule à partir des images et du masque, et produit une seconde mesure **corrigée du débordement latéral** (le signal d'une cellule qui « bave » sur ses voisines). Choisissez ensuite la mesure utilisée pour toute l'analyse avec `MEASUREMENT` : `"fcs"` (par défaut), `"mask_mean"` ou `"mask_spillover"`. Voir l'encadré ci-dessous. |
@@ -207,7 +218,7 @@ Pour modifier un paramètre : cliquez dans la cellule, changez la valeur après 
 | Étape | Que faire |
 |---|---|
 | **0.6 Liste des types cellulaires** 🖐️ | `CLUSTERLEVELS` contient les noms possibles des types cellulaires. Elle est adaptée au panel PhenoCycler de test (CD31 → `Endo`, pas de marqueur pour les granulocytes ni les cellules dendritiques). **Adaptez-la à votre panel.** Les familles (CK, stroma, lymphocytes, myéloïdes) sont déduites des noms : un nom contenant `CK` est tumoral, `Mac` un macrophage, `Str` ou `Endo` du stroma. |
-| **1.1 Métadonnées** | Chargement de `regions_metadata.xlsx`, ou création du modèle à compléter. |
+| **1.1 Métadonnées** | Lecture des colonnes descriptives du tableau des ROI, et écriture du modèle `regions_metadata_template.xlsx`. |
 | **1.2 Transformation** 🖐️🔍 | Les intensités sont transformées par `arcsinh(intensité / COFACTOR)`. **Regardez les histogrammes** : pour un bon marqueur de lignée (CD3, CD20, K8, CD68…), on doit voir deux populations, négative et positive, bien séparées. Si tout est écrasé à gauche, diminuez `COFACTOR` ; si tout est étalé sans séparation, augmentez-le. La valeur par défaut est 150 ; testez par exemple 50, 150 et 300. Les canaux DAPI, Blank et Empty sont exclus automatiquement (`EXCLUDE_PATTERN`). |
 | **1.3 Clustering** 🖐️ | FlowSOM regroupe les cellules en `N_CLUSTERS` groupes (30 par défaut, 50 dans le pipeline R). Mieux vaut un peu trop de clusters que pas assez : plusieurs clusters pourront recevoir le même nom. |
 | **1.4 Annotation** 🖐️ | **L'étape la plus importante**, détaillée juste après ce tableau. |
@@ -257,7 +268,7 @@ Chaque type cellulaire est un nœud, dont la taille dépend de son abondance ; p
 
 ## 6. Fichiers produits
 
-Tous les résultats sont écrits dans **`Results_spatialdata/`**, à l'intérieur de votre dossier de données.
+Tous les résultats sont écrits dans **`Results_spatialdata/`**, à côté du tableau des ROI (ou dans la ROI unique, ou dans `PROJECT_DIR` si vous l'avez renseigné).
 
 | Fichier | Contenu |
 |---|---|
@@ -279,14 +290,14 @@ Tous les résultats sont écrits dans **`Results_spatialdata/`**, à l'intérieu
 | `Results_distances_*.csv`, `Distance_violinplots.pdf` | Comparaison des distances entre groupes |
 | `cells.parquet` | Tableau complet cellule par cellule (pour une réanalyse) |
 
-Le dossier **`spatialdata/`** contient un fichier `regXXX.zarr` par région : images, segmentation, positions et table annotée. La table contient les trois mesures d'intensité (`raw` = FCS, `mask_mean`, `mask_spillover`). Ces fichiers peuvent être rouverts dans d'autres outils de l'écosystème scverse, par exemple **napari-spatialdata** pour explorer les images en local.
+Le dossier **`spatialdata/`** contient un fichier `<région>.zarr` par ROI (par ex. `EXP112_ROI_9x7.zarr`) : images, segmentation, positions et table annotée. La table contient les trois mesures d'intensité (`raw` = FCS, `mask_mean`, `mask_spillover`). Ces fichiers peuvent être rouverts dans d'autres outils de l'écosystème scverse, par exemple **napari-spatialdata** pour explorer les images en local.
 
 ---
 
 ## 7. Relancer une analyse ou ajouter des régions
 
 - **Changer un paramètre** (cofacteur, nombre de clusters…) : modifiez-le, puis réexécutez la cellule et toutes les suivantes.
-- **Ajouter des régions** : déposez les nouveaux fichiers (FCS, images, labels) dans les dossiers, ajoutez les lignes correspondantes dans `regions_metadata.xlsx`, puis relancez depuis le début. Seules les nouvelles régions sont converties en Zarr, et le clustering est refait sur l'ensemble : **il faudra réannoter les clusters**.
+- **Ajouter des ROI** : ajoutez une ligne par nouvelle ROI dans `regions_metadata.xlsx` (ou passez `include` à 1), puis relancez depuis le début. Seules les nouvelles régions sont converties en Zarr, et le clustering est refait sur l'ensemble : **il faudra réannoter les clusters**.
 - **Remplacer une carte de labels ou ajouter des images** : la région concernée est reconvertie automatiquement. Pour forcer la reconversion de tout, mettez `REBUILD_ZARR = True`.
 - **Reprendre une session interrompue** : réexécutez la partie 0 (rapide, les Zarr existent déjà). Les parties suivantes rechargent les résultats sauvegardés si nécessaire.
 
@@ -298,12 +309,14 @@ Le dossier **`spatialdata/`** contient un fichier `regXXX.zarr` par région : im
 |---|---|
 | `conda` ou `jupyter` : « commande introuvable » | Vous n'êtes pas dans l'Anaconda Prompt, ou l'environnement n'est pas activé : tapez `conda activate spatial`. |
 | `ModuleNotFoundError: No module named …` | Le notebook n'utilise pas le bon environnement. Dans JupyterLab, vérifiez en haut à droite que le noyau est « Python 3 » de l'environnement `spatial`. Sinon, relancez `jupyter lab` depuis le terminal où `spatial` est activé. |
-| `RAW_DIR introuvable` | Chemin mal écrit. Sous Windows, utilisez des `/` (`"D:/PhenoCycler/EXP100"`). Copiez le chemin depuis l'explorateur de fichiers et remplacez les `\` par des `/`. |
-| Une région n'a pas de labels dans le tableau 0.3 | Le nom du fichier de labels ne contient pas `regXXX` : renommez-le. |
+| « Ni tableau Excel ni dossier ROI trouvé » | Chemin mal écrit dans `REGIONS_METADATA` ou `RAW_DIR`. Sous Windows, utilisez des `/` (`"D:/ELOISE/regions_metadata.xlsx"`) ; copiez le chemin depuis l'explorateur de fichiers et remplacez les `\` par des `/`. |
+| Une ROI est « exclue » à l'étape 0.3 | Son FCS ou son `channelNames.txt` n'a pas été trouvé : vérifiez `FCS_SUBDIR` et `CHANNELS_FILE_REL`, ou renseignez `fcs_file` / `channels_file` pour cette ROI dans le tableau. |
+| « nb TIF = 0 » ou « labels absent » pour une ROI | Vérifiez `IMAGES_SUBDIR` et `LABELS_FILE_REL`, ou renseignez `images_dir` / `labels_file` pour cette ROI dans le tableau. |
+| « Identifiants de région en double » | Deux ROI ont le même nom d'expérience et de dossier : ajoutez une colonne `region` avec des noms distincts. |
 | Peu de cellules appariées à la carte de labels (étape 0.4) | Vérifiez que la carte correspond bien à la même région et à la même résolution que les images. Si le décalage est d'un pixel, essayez `COORD_ONE_BASED = False`. |
 | Les contours ne tombent pas sur les noyaux (étape 0.5) | Carte de labels d'une autre région ou d'une autre taille d'image. |
 | « matrice trop petite » en partie 3 | Pas assez de cellules par condition : diminuez `MIN_CELLS_CONDITION`. |
-| Les comparaisons sont « ignorées » | `regions_metadata.xlsx` absent, ou la colonne `Phenotype` ne contient ni `LUM` ni `TNC`. |
+| Les comparaisons sont « ignorées » | Mode « une seule ROI », ou la colonne `Phenotype` du tableau ne contient ni `LUM` ni `TNC`. |
 | L'éditeur d'annotation ne s'affiche pas | Installez ipywidgets (`pip install ipywidgets` dans l'environnement), puis redémarrez JupyterLab. Vous pouvez aussi éditer `merge_phenocycler.xlsx` dans Excel. |
 | Mémoire saturée / ordinateur très lent | Trop de cellules ou de régions pour la mémoire disponible : réduisez `UMAP_NCELLS`, analysez les régions par lots, ou utilisez une machine avec plus de mémoire. |
 | Les graphiques interactifs (UMAP, 3D) restent vides | Rechargez la page du navigateur ; vérifiez que `plotly` est bien installé dans l'environnement. |
