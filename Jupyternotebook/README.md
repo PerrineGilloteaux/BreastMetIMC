@@ -1,3 +1,5 @@
+MOVED PROJECT to [GITLAB MicroPICell PHENOCYCLER UTilities](https://gitlab.univ-nantes.fr/micropicell/analyseimage/phenocycler_utilities)
+
 # Analyse spatiale de données PhenoCycler avec SpatialData
 
 Ce notebook Jupyter analyse des données de **PhenoCycler (CODEX)**. Il part des images, de la segmentation et des intensités par cellule, et les rassemble dans le format standard **[SpatialData](https://spatialdata.scverse.org/en/stable/)**. Il refait ensuite les analyses du pipeline R *BreastMetIMC* (scripts `IMCpipeline_1` à `5`) :
